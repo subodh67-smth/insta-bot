@@ -14,7 +14,8 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 VERIFY_TOKEN = "my_secure_webhook_verify_token_123" 
 
 # Configure Gemini AI
-genai.configure(api_key=GEMINI_API_KEY)
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel('gemini-1.5-flash')
 
 # --- THE GARDENS JHAMSIKHEL PROFILE ---
@@ -51,15 +52,22 @@ def get_ai_response(user_message):
 
 def send_instagram_dm(recipient_id, message_text):
     """Sends a message back to the customer via the Meta Graph API."""
-    url = f"https://facebook.com{INSTAGRAM_ACCOUNT_ID}/messages"
+    # FIXED: Added 'graph.' domain, trailing slashes, and Meta Graph API version prefix
+    url = f"https://graph.facebook.com/v20.0/{INSTAGRAM_ACCOUNT_ID}/messages"
     payload = {
         "recipient": {"id": recipient_id},
         "message": {"text": message_text}
     }
     headers = {"Authorization": f"Bearer {PAGE_ACCESS_TOKEN}"}
     
-    response = requests.post(url, json=payload, headers=headers)
-    return response.json()
+    try:
+        response = requests.post(url, json=payload, headers=headers)
+        res_data = response.json()
+        print(f"Meta Graph API Response ({response.status_code}):", res_data)
+        return res_data
+    except Exception as e:
+        print(f"Error calling Meta Graph API: {e}")
+        return None
 
 @app.route('/webhook', methods=['GET', 'POST'])
 def webhook():
@@ -70,19 +78,28 @@ def webhook():
         challenge = request.args.get('hub.challenge')
         
         if mode == 'subscribe' and token == VERIFY_TOKEN:
+            print("Webhook successfully verified by Meta!")
             return challenge, 200
+        print("Verification token mismatch!")
         return 'Verification token mismatch', 403
 
     # 2. Handling Real-Time DMs from Instagram
     if request.method == 'POST':
         data = request.json
+        print("Incoming Webhook Data:", data)  # Useful for debugging incoming payloads in Render logs
+        
         try:
             for entry in data.get('entry', []):
                 for messaging_event in entry.get('messaging', []):
                     sender_id = messaging_event['sender']['id']
                     
+                    # Ignore echoes or bot's own sent messages
                     if 'message' in messaging_event and 'text' in messaging_event['message']:
+                        if messaging_event['message'].get('is_echo'):
+                            continue
+                            
                         user_message = messaging_event['message']['text']
+                        print(f"User ({sender_id}) sent: {user_message}")
                         
                         # Generate the AI answer using The Gardens data
                         ai_reply = get_ai_response(user_message)
@@ -91,9 +108,11 @@ def webhook():
                         send_instagram_dm(sender_id, ai_reply)
                         
         except Exception as e:
-            print(f"Error reading Meta webhook data: {e}")
+            print(f"Error processing Meta webhook payload: {e}")
             
         return 'EVENT_RECEIVED', 200
 
 if __name__ == '__main__':
-    app.run(port=5000)
+    # FIXED: Binds to Render's dynamic PORT environment variable and listens on 0.0.0.0
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
