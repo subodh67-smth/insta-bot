@@ -16,7 +16,7 @@ VERIFY_TOKEN = "my_secure_webhook_verify_token_123"
 # Configure Gemini AI
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini- flash')
+model = genai.GenerativeModel('gemini-3.8-flash')
 
 # --- THE GARDENS JHAMSIKHEL PROFILE ---
 RESTAURANT_KNOWLEDGE = """
