@@ -116,3 +116,12 @@ if __name__ == '__main__':
     # FIXED: Binds to Render's dynamic PORT environment variable and listens on 0.0.0.0
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
+@app.route('/privacy')
+def privacy_policy():
+    return """
+    <h1>Privacy Policy for The Gardens Jhamsikhel Chatbot</h1>
+    <p>This Instagram Chatbot collects incoming user messages solely to process automated replies using AI.</p>
+    <p>We do not sell, store, or share your personal data with third parties.</p>
+    <p>For data deletion requests, please contact us directly via Instagram Direct Message.</p>
+    """, 200
