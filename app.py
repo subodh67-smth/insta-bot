@@ -25,7 +25,7 @@ CRITICAL INSTRUCTIONS:
 5. Keep answers warm, helpful, conversational, and concise.
 """
 
-# Configure Gemini AI
+# Configure Gemini AI safely
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
 
@@ -34,12 +34,14 @@ def get_ai_response(user_message):
     prompt = f"{RESTAURANT_KNOWLEDGE}\n\nCustomer asks: '{user_message}'\nYour direct response:"
     
     try:
-        # Using the standard gemini-flash-latest alias to prevent deprecation 404 errors
-        model = genai.GenerativeModel('gemini-flash-latest')
-        return model.generate_content(prompt).text
+        # Using the standard gemini-1.5-flash / gemini-flash-latest model
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content(prompt)
+        return response.text
     except Exception as e:
         print(f"Gemini API Error: {e}")
-        return "🌿 Thanks for messaging The Gardens, Jhamsikhel! How can we assist you today? Please drop your query or phone number, and our team will get back to you shortly!"
+        # Detailed error fallback so you know if it's a quota or model issue
+        return "🌿 Thanks for messaging The Gardens, Jhamsikhel! We are currently experiencing high message volume. Please leave your query or phone number, and our team will get back to you shortly!"
 
 def send_instagram_dm(recipient_id, message_text):
     """Sends a message back to the customer via the Meta Graph API."""
