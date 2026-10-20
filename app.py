@@ -30,18 +30,17 @@ if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
 
 def get_ai_response(user_message):
-    """Generates a direct response from Gemini using the active flash model alias."""
+    """Generates a direct response from Gemini using gemini-3.8-flash."""
     prompt = f"{RESTAURANT_KNOWLEDGE}\n\nCustomer asks: '{user_message}'\nYour direct response:"
     
     try:
-        # Using the standard gemini-1.5-flash / gemini-flash-latest model
+        # Using the correct gemini-3.8-flash model endpoint
         model = genai.GenerativeModel('gemini-3.8-flash')
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
-        print(f"Gemini API Error: {e}")
-        # Detailed error fallback so you know if it's a quota or model issue
-        return "🌿 Thanks for messaging The Gardens, Jhamsikhel! We are currently experiencing high message volume. Please leave your query or phone number, and our team will get back to you shortly!"
+        print(f"!!! GEMINI API ERROR: {e}")
+        return "🌿 Thanks for messaging The Gardens, Jhamsikhel! How can we assist you today? Please drop your query or phone number, and our team will get back to you shortly!"
 
 def send_instagram_dm(recipient_id, message_text):
     """Sends a message back to the customer via the Meta Graph API."""
@@ -92,20 +91,26 @@ def webhook():
         try:
             for entry in data.get('entry', []):
                 for messaging_event in entry.get('messaging', []):
-                    sender_id = messaging_event['sender']['id']
+                    sender_id = messaging_event.get('sender', {}).get('id')
+                    
+                    # Ignore messages sent by your own Instagram Business Account ID to block loops
+                    if sender_id == INSTAGRAM_ACCOUNT_ID:
+                        print("Ignoring outgoing echo message from our own bot account.")
+                        continue
                     
                     if 'message' in messaging_event and 'text' in messaging_event['message']:
-                        # Ignore echo messages sent by your own business account
-                        if messaging_event['message'].get('is_echo'):
+                        msg_data = messaging_event['message']
+                        
+                        if msg_data.get('is_echo'):
                             continue
                             
-                        user_message = messaging_event['message']['text']
-                        print(f"User ({sender_id}) asked: '{user_message}'")
+                        user_message = msg_data['text']
+                        print(f"Valid Customer ({sender_id}) asked: '{user_message}'")
                         
                         # Generate the AI answer using Gemini
                         ai_reply = get_ai_response(user_message)
                         
-                        # Send reply back to Instagram DM inbox
+                        # Send reply back to customer's Instagram DM inbox
                         send_instagram_dm(sender_id, ai_reply)
                         
         except Exception as e:
